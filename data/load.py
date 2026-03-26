@@ -1,14 +1,8 @@
 import torch
 from torch.utils.data import Dataset, DataLoader
-import numpy as np
 from PIL import Image
 from pathlib import Path
-from utils import depth_to_viridis_gpu, VIRIDIS_LUT
 from torchvision import transforms as T
-from transformers import SiglipVisionModel
-import h5py
-from tqdm import tqdm
-from utils import to_grid
 
 class DepthDataset(Dataset):
     def __init__(self, rgb_dir, depth_dir):

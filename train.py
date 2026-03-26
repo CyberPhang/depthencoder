@@ -1,11 +1,9 @@
 import torch
 from copy import deepcopy
-from models.autoencoder import Autoencoder, AutoencoderViT
-from models.decoder import DepthDecoder
+from models.autoencoder import Autoencoder
 from torch.optim import AdamW
 import torch.nn.functional as F
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from models.loss import perceptual_loss
 import matplotlib.pyplot as plt
 from data.load import load_data
 from tqdm import tqdm
@@ -126,7 +124,7 @@ if __name__ == "__main__":
         in_mem=False
     )
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    model = AutoencoderViT()
+    model = Autoencoder()
     optimizer = AdamW(model.parameters(), lr=1e-3, weight_decay=0.01)
     scheduler = ReduceLROnPlateau(
         optimizer, mode='min', factor=0.5, patience=15, min_lr=1e-6
