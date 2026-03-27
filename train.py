@@ -2,12 +2,14 @@ import torch
 from copy import deepcopy
 from models.autoencoder import Autoencoder
 from torch.optim import AdamW
+from torch.nn.utils import clip_grad_norm_
 import torch.nn.functional as F
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 import matplotlib.pyplot as plt
 from data.load import load_data
 from tqdm import tqdm
 from utils import depth_to_viridis_gpu, VIRIDIS_LUT
+from transformers import get_cosine_schedule_with_warmup
 
 def eval_autoencoder(model, X_dev, device):
     model.eval()
@@ -27,10 +29,11 @@ def eval_autoencoder(model, X_dev, device):
 def train_autoencoder(
     model,
     optimizer,
-    scheduler,
     X_train,
     X_dev,
     epochs,
+    scheduler=None,
+    warmup=None,
     device="cpu",
     verbose=True,
     checkpoint_path="models/checkpoints/checkpoint.pth",
@@ -53,7 +56,10 @@ def train_autoencoder(
             pred = model(depth_v)
             l = F.l1_loss(pred, depth)
             l.backward()
+            clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
+            if warmup:
+                warmup.step()
 
             train_epoch_loss += l.item()
 
@@ -123,20 +129,26 @@ if __name__ == "__main__":
         batch_size=8,
         in_mem=False
     )
+    epochs = 5
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = Autoencoder()
-    optimizer = AdamW(model.parameters(), lr=1e-3, weight_decay=0.01)
+    optimizer = AdamW(model.parameters(), lr=3e-4, weight_decay=0.01)
     scheduler = ReduceLROnPlateau(
         optimizer, mode='min', factor=0.5, patience=15, min_lr=1e-6
     )
+    # warmup = get_cosine_schedule_with_warmup(
+    #     optimizer,
+    #     num_warmup_steps=100,
+    #     num_training_steps=epochs * len(train_dataloader)
+    # )
     train_losses, dev_losses = train_autoencoder(
-        model,
-        optimizer,
-        scheduler,
-        train_dataloader,
-        dev_dataloader,
-        5,
-        device,
+        model=model,
+        optimizer=optimizer,
+        X_train=train_dataloader,
+        X_dev=dev_dataloader,
+        epochs=epochs,
+        device=device,
+        scheduler=scheduler
     )
     torch.save(model.state_dict(), "models/checkpoints/model_weights.pth")
     plot(train_losses, dev_losses, title="Loss", label="L1 Loss")

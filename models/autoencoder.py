@@ -13,6 +13,5 @@ class Autoencoder(nn.Module):
         self.layers = layers
 
     def forward(self, x):
-        x = self.encoder(pixel_values=x, output_hidden_states=True)
-        hidden = torch.stack([x.hidden_states[l] for l in self.layers]).mean(dim=0)
-        return self.decoder(hidden)
+        hidden_states = self.encoder(pixel_values=x, output_hidden_states=True).hidden_states
+        return self.decoder(hidden_states)

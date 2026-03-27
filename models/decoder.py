@@ -5,6 +5,7 @@ class DepthDecoder(nn.Module):
     def __init__(self, embed_dim=768, decoder_dim=512, num_layers=4, num_heads=8):
         super().__init__()
         self.proj = nn.Linear(embed_dim, decoder_dim)
+        self.pos_embed = nn.Parameter(torch.randn(1, 196, decoder_dim) * 0.02)
         self.blocks  = nn.ModuleList([
             nn.TransformerEncoderLayer(
                 d_model=decoder_dim, 
@@ -16,15 +17,41 @@ class DepthDecoder(nn.Module):
             )
             for _ in range(num_layers)
         ])
+        self.norm = nn.LayerNorm(decoder_dim)
         self.head = nn.Linear(decoder_dim, 16*16*1)
+        self.refine = nn.Sequential(
+            nn.Conv2d(1, 16, kernel_size=3, padding=1),
+            nn.GELU(),
+            nn.Conv2d(16, 16, kernel_size=3, padding=1),
+            nn.GELU(),
+            nn.Conv2d(16, 16, kernel_size=3, padding=1),
+            nn.GELU(),
+            nn.Conv2d(16, 1, kernel_size=3, padding=1),
+            nn.Sigmoid()
+        )
     
-    def forward(self, x):
+    def forward(self, hidden_states):
+        x = hidden_states[-1]
         x = self.proj(x)
-        for block in self.blocks:
-            x = block(x)
+        x = x + self.pos_embed
+
+        x = self.blocks[0](x)
+        x = x + self.proj(hidden_states[9])
+
+        x = self.blocks[1](x)
+        x = x + self.proj(hidden_states[6])
+
+        x = self.blocks[2](x)
+        x = x + self.proj(hidden_states[3])
+
+        for i in range(3, len(self.blocks)):
+            x = self.blocks[i](x)
+
+        x = self.norm(x)
         x = self.head(x)
         B = x.shape[0]
         x = x.reshape(B, 14, 14, 16, 16)
         x = x.permute(0, 1, 3, 2, 4)
         x = x.reshape(B, 1, 224, 224)
-        return torch.sigmoid(x)
+        x = self.refine(x)
+        return x
