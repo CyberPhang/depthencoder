@@ -26,3 +26,23 @@ def to_grid(h):
     B, N, D = h.shape
     s = int(N**0.5)
     return h.reshape(B, s, s, D).permute(0, 3, 1, 2)
+
+def patchify(x, patch_size=16):
+    # x is (B, 1, 224, 224)
+    B = x.shape[0]
+    x = x.reshape(B, 1, 14, patch_size, 14, patch_size)
+    x = x.permute(0, 2, 4, 1, 3, 5)        # (B, 14, 14, 1, 16, 16)
+    x = x.reshape(B, 196, patch_size**2)    # (B, 196, 256)
+    return x
+
+def unpatchify(x, patch_size=16):
+    B = x.shape[0]
+    x = x.reshape(B, 14, 14, patch_size, patch_size)
+    x = x.permute(0, 1, 3, 2, 4)
+    x = x.reshape(B, 1, 14 * patch_size, 14 * patch_size)
+    return x
+
+def normalize_patches(patches):
+    mean = patches.mean(dim=-1, keepdim=True)
+    std  = patches.std(dim=-1, keepdim=True) + 1e-6
+    return (patches - mean) / std, mean, std

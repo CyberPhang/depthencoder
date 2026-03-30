@@ -4,7 +4,7 @@ from data.load import load_data
 from models.decoder import DepthDecoder
 from models.autoencoder import Autoencoder
 import matplotlib.pyplot as plt
-from utils import depth_to_viridis_gpu, VIRIDIS_LUT
+from utils import depth_to_viridis_gpu, VIRIDIS_LUT, patchify, normalize_patches, unpatchify
 
 if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -18,8 +18,6 @@ if __name__ == "__main__":
         "./images/pixmo_depth_224",
         batch_size=8
     )
-    mean = torch.tensor([0.5, 0.5, 0.5], device=device).view(1, 3, 1, 1)
-    std  = torch.tensor([0.5, 0.5, 0.5], device=device).view(1, 3, 1, 1)
     while True:
         print("Enter a number to visualize the original and reconstructed images, or 'q' to quit:")
         user_input = input().strip()
@@ -36,10 +34,14 @@ if __name__ == "__main__":
             rgb.unsqueeze(0)
             depth.unsqueeze(0)
             depth_colored = depth_to_viridis_gpu(depth, VIRIDIS_LUT)
-            depth_input = (depth_colored - mean) / std
+            depth_input = (depth_colored - 0.5) / 0.5
             depth_input = depth_input.to(device)
             with torch.no_grad():
                 reconstructed_image = model(depth_input)
+                patches = patchify(depth)
+                _, mean, std = normalize_patches(patches)
+                reconstructed_image = reconstructed_image * std + mean
+                reconstructed_image = unpatchify(reconstructed_image)
                 reconstructed_image = depth_to_viridis_gpu(reconstructed_image, VIRIDIS_LUT)
 
             original_image_np = depth_colored.squeeze().cpu().numpy()

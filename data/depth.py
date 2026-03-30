@@ -15,9 +15,9 @@ pipe = pipeline(
 
 output_dir = Path("../images/pixmo_depth_224")
 output_dir.mkdir(exist_ok=True)
-image_dir = Path("../images/pixmo_images_224/00000")
+image_dir = Path("../images/pixmo_images_224")
 
-for img_path in tqdm(list(image_dir.glob("*.jpg"))):
+for img_path in tqdm(list(image_dir.glob("**/*.jpg"))):
     out_path = output_dir / img_path.name
     if out_path.exists():
         continue
