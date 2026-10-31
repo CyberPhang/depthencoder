@@ -18,7 +18,6 @@ class DepthDataset(Dataset):
         rgb   = Image.open(rgb_path).convert("RGB")
         depth = Image.open(depth_path).convert("L")
         rgb   = T.ToTensor()(rgb)
-        rgb   = (rgb - 0.5) / 0.5
         depth = T.ToTensor()(depth)
         return rgb, depth
 

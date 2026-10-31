@@ -13,9 +13,10 @@ pipe = pipeline(
     torch_dtype=torch.float16
 )
 
-output_dir = Path("../images/pixmo_depth_224")
+root = Path(__file__).resolve().parents[1]
+output_dir = root / "images" / "pixmo_depth_224"
 output_dir.mkdir(exist_ok=True)
-image_dir = Path("../images/pixmo_images_224")
+image_dir = root / "images" / "pixmo_images_224"
 
 for img_path in tqdm(list(image_dir.glob("**/*.jpg"))):
     out_path = output_dir / img_path.name
