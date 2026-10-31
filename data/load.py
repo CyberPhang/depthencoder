@@ -22,7 +22,7 @@ class DepthDataset(Dataset):
         depth = T.ToTensor()(depth)
         return rgb, depth
 
-def load_data(rgb_dir, depth_dir, batch_size=32, in_mem=False):
+def load_data(rgb_dir, depth_dir, batch_size=32):
     torch.manual_seed(493)
     dataset = DepthDataset(rgb_dir, depth_dir)
     train_size = 4 * len(dataset) // 5

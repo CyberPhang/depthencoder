@@ -5,6 +5,7 @@ from models.decoder import DepthDecoder
 from models.autoencoder import Autoencoder
 import matplotlib.pyplot as plt
 from utils import depth_to_viridis_gpu, VIRIDIS_LUT, patchify, normalize_patches, unpatchify
+from oldstuff import OldAutoencoder
 
 if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -31,32 +32,35 @@ if __name__ == "__main__":
 
             rgb, depth = dev_dataloader.dataset[index]
             rgb, depth = rgb.to(device), depth.to(device)
-            rgb.unsqueeze(0)
-            depth.unsqueeze(0)
-            depth_colored = depth_to_viridis_gpu(depth, VIRIDIS_LUT)
-            depth_input = (depth_colored - 0.5) / 0.5
-            depth_input = depth_input.to(device)
-            with torch.no_grad():
-                reconstructed_image = model(depth_input)
-                patches = patchify(depth)
-                _, mean, std = normalize_patches(patches)
-                reconstructed_image = reconstructed_image * std + mean
-                reconstructed_image = unpatchify(reconstructed_image)
-                reconstructed_image = depth_to_viridis_gpu(reconstructed_image, VIRIDIS_LUT)
+            rgb_input = rgb.unsqueeze(0) # Already normalized by Dataset: (x-0.5)/0.5
 
-            original_image_np = depth_colored.squeeze().cpu().numpy()
-            reconstructed_image_np = reconstructed_image.squeeze().cpu().numpy()
-            original_image_np = np.transpose(original_image_np, axes=(1, 2, 0))
-            reconstructed_image_np = np.transpose(reconstructed_image_np, axes=(1, 2, 0))
+            depth_colored = depth_to_viridis_gpu(depth.unsqueeze(0), VIRIDIS_LUT)
+            depth_input = (depth_colored - 0.5) / 0.5
+
+            with torch.no_grad():
+                # model expects (B, 3, 224, 224) for both
+                reconstructed_depth = model(rgb_input, depth_input)
+                
+                # Denormalize patches using GT stats for autoencoder reconstruction demo
+                # patches = patchify(depth.unsqueeze(0))
+                # _, mean, std = normalize_patches(patches)
+                # reconstructed_patches = reconstructed_patches * std + mean
+                
+                # reconstructed_depth = unpatchify(reconstructed_patches)
+                reconstructed_color = depth_to_viridis_gpu(reconstructed_depth, VIRIDIS_LUT)
+
+            # Convert to numpy for plotting
+            original_np = depth_colored.squeeze().permute(1, 2, 0).cpu().numpy()
+            reconstructed_np = reconstructed_color.squeeze().permute(1, 2, 0).cpu().numpy()
 
             plt.figure(figsize=(10, 5))
             plt.subplot(1, 2, 1)
-            plt.title("Original Image")
-            plt.imshow(original_image_np, cmap='viridis')
+            plt.title("Original Depth (Colorized)")
+            plt.imshow(original_np)
             plt.axis('off')
             plt.subplot(1, 2, 2)
-            plt.title("Reconstructed Image")
-            plt.imshow(reconstructed_image_np, cmap='viridis')
+            plt.title("Reconstructed Depth (Colorized)")
+            plt.imshow(reconstructed_np)
             plt.axis('off')
             plt.show()
             
